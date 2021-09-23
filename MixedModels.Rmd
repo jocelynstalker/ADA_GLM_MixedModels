@@ -1,0 +1,77 @@
+---
+title: "Mixed Modeling for Repeated Measures and Hierarchical Data"
+author: "Jocelyn Stalker"
+date: "9/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(janitor)
+library(tidyverse)
+library(dplyr)
+library(stringr)
+library(lme4)
+library(lmerTest)
+```
+# Repeated Measures Data
+
+
+```{r import and prep data}
+hurr.herp <- read.csv("./Data/hurricane_herp_data.csv", header=TRUE, na.strings= "") %>% clean_names() %>% filter(!str_detect(sitio_estadios, "NA")) %>% filter(!str_detect(grupo, "TORTUGA"))
+hurr.herp$grupo <- as.factor(hurr.herp$grupo)
+levels(hurr.herp$grupo) <- c("amphibian","lizard","lizard","snake","turtle")
+hurr.herp$sitio_estadios <- as.factor(hurr.herp$sitio_estadios)
+levels(hurr.herp$sitio_estadios) <- c("A","B","C","D","E","F","G","H","I","J","K","L","M","N","O")
+hurr.herp <- select(hurr.herp, sitio_estadios, pre_post, grupo, especie)
+colnames(hurr.herp) <- c("site","pre_post","group","species")
+hurr.herp[469, "species"] <- "Phrynohyas venulosa" # Fix a typo in the data
+hurr.herp.group <- hurr.herp %>% count(site, pre_post, group)
+hurr.herp.snake <- hurr.herp %>% count(site, pre_post, group) %>% filter(str_detect(group, "snake"))
+hurr.herp.snake$pre_post = factor(hurr.herp.snake$pre_post, levels = c("Pre", "Post")) #reorder factor to be pre then post
+hurr.herp.amph <- hurr.herp %>% count(site, pre_post, group) %>% filter(str_detect(group, "amphibian"))
+hurr.herp.amph$pre_post = factor(hurr.herp.amph$pre_post, levels = c("Pre", "Post"))
+hurr.herp.liz <- hurr.herp %>% count(site, pre_post, group) %>% filter(str_detect(group, "lizard"))
+hurr.herp.liz$pre_post = factor(hurr.herp.liz$pre_post, levels = c("Pre", "Post"))
+```
+
+```{r plot the data}
+ggplot(hurr.herp.snake, aes(x=pre_post, y=n)) + 
+  geom_line(aes(group=site)) +
+  geom_point(size=3) +
+  ggtitle("Effect of a Hurricane on Snake Counts")
+
+ggplot(hurr.herp.liz, aes(x=pre_post, y=n)) + 
+  geom_line(aes(group=site)) +
+  geom_point(size=3) +
+  ggtitle("Effect of a Hurricane on Lizard Counts")
+
+ggplot(hurr.herp.amph, aes(x=pre_post, y=n)) + 
+  geom_line(aes(group=site)) +
+  geom_point(size=3) +
+  ggtitle("Effect of a Hurricane on Amphibian Counts")
+```
+
+```{r fit mixed model}
+lmer.herp <- lmer(n ~ group*pre_post + (1|site), data= hurr.herp.group)
+# summary(lmer.herp)
+anova(lmer.herp)
+```
+
+```{r check machine model, fig.width=9.5, fig.height=9}
+performance::check_model(mixed_machine)
+```
+
+```{r fit emmeans from model - each machine}
+#calculate model-adjusted means (e.g. estimated marginal means)
+mixed_machine_emm <- emmeans(mixed_machine, "machine")
+mixed_machine_emm
+```
+
+```{r fit emmeans from model - each person}
+emmeans(mixed_machine, "person")
+```
+
+```{r fit emmeans from model - each person*machine}
+emmeans(mixed_machine, "machine", "person") #reverse the order of factors for alternative output # can switch the order
+```

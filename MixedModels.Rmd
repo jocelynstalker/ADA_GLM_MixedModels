@@ -161,5 +161,7 @@ ggplot(data.chimp.emm, aes(x= time, y= emmean, color= sex)) + geom_point(size= 4
 
 emmeans are the same as actual means.
 
+![](https://www.humanesociety.org/sites/default/files/styles/768x326/public/2020/02/project-chimps-loretta-458892_0.jpg?h=d0277574&itok=ORNP5618)
+
 ![](https://wompampsupport.azureedge.net/fetchimage?siteId=7575&v=2&jpgQuality=100&width=700&url=https%3A%2F%2Fi.kym-cdn.com%2Fentries%2Ficons%2Foriginal%2F000%2F031%2F349%2Ffrog.jpg)
 </div>

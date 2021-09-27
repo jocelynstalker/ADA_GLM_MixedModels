@@ -4,7 +4,19 @@ author: "Jocelyn Stalker"
 date: "9/23/2021"
 output: html_document
 ---
+<body style="background-color:darkolivegreen;">
 
+```{css, include=FALSE}
+.Autumn {
+  background-color: firebrick3;
+}
+```
+<style>
+div.cranberries pre { background-color:#D64D32; }
+div.cranberries pre.r { background-color:#EE9B6B; }
+</style>
+
+<div class = "cranberries">
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(janitor)
@@ -13,11 +25,15 @@ library(dplyr)
 library(stringr)
 library(lme4)
 library(lmerTest)
+library(performance)
+library(emmeans)
+library(RColorBrewer)
+library(colorRamps)
 ```
-# Repeated Measures Data
 
+# Hierarchical Data
 
-```{r import and prep data}
+```{r import and prepare data, class.source="Autumn"}
 hurr.herp <- read.csv("./Data/hurricane_herp_data.csv", header=TRUE, na.strings= "") %>% clean_names() %>% filter(!str_detect(sitio_estadios, "NA")) %>% filter(!str_detect(grupo, "TORTUGA"))
 hurr.herp$grupo <- as.factor(hurr.herp$grupo)
 levels(hurr.herp$grupo) <- c("amphibian","lizard","lizard","snake","turtle")
@@ -27,51 +43,125 @@ hurr.herp <- select(hurr.herp, sitio_estadios, pre_post, grupo, especie)
 colnames(hurr.herp) <- c("site","pre_post","group","species")
 hurr.herp[469, "species"] <- "Phrynohyas venulosa" # Fix a typo in the data
 hurr.herp.group <- hurr.herp %>% count(site, pre_post, group)
+hurr.herp.group$pre_post = factor(hurr.herp.group$pre_post, levels = c("Pre", "Post")) # Reorder factor to be pre then post
 hurr.herp.snake <- hurr.herp %>% count(site, pre_post, group) %>% filter(str_detect(group, "snake"))
-hurr.herp.snake$pre_post = factor(hurr.herp.snake$pre_post, levels = c("Pre", "Post")) #reorder factor to be pre then post
+hurr.herp.snake$pre_post = factor(hurr.herp.snake$pre_post, levels = c("Pre", "Post"))
 hurr.herp.amph <- hurr.herp %>% count(site, pre_post, group) %>% filter(str_detect(group, "amphibian"))
 hurr.herp.amph$pre_post = factor(hurr.herp.amph$pre_post, levels = c("Pre", "Post"))
 hurr.herp.liz <- hurr.herp %>% count(site, pre_post, group) %>% filter(str_detect(group, "lizard"))
 hurr.herp.liz$pre_post = factor(hurr.herp.liz$pre_post, levels = c("Pre", "Post"))
 ```
 
-```{r plot the data}
-ggplot(hurr.herp.snake, aes(x=pre_post, y=n)) + 
-  geom_line(aes(group=site)) +
-  geom_point(size=3) +
+```{r geom_jitter plot, fig.height= 6}
+getPalette = colorRampPalette(brewer.pal(9, "Oranges"))
+
+ggplot(hurr.herp.group, aes(group, n, colour= site, shape= pre_post)) + geom_jitter(width =0.15, size=5) + xlab("Taxonomic Group") +
+  ylab("Number of Individuals") + scale_color_manual(name= "Site", values= getPalette(15)) + scale_shape_discrete(name= "Time Relative\n to Hurricane") +
+  ggtitle("Herpetofauna Counts Before and After a Hurricane")
+```
+
+```{r plot the data, class.source="Autumn"}
+ggplot(hurr.herp.snake, aes(x=pre_post, y=n)) + xlab("Time Relative to Hurricane") + ylab("Number of Individuals") +
+  geom_line(aes(group=site), color= "chocolate2") +
+  geom_point(size=3, color= "burlywood4") +
   ggtitle("Effect of a Hurricane on Snake Counts")
 
-ggplot(hurr.herp.liz, aes(x=pre_post, y=n)) + 
-  geom_line(aes(group=site)) +
-  geom_point(size=3) +
+ggplot(hurr.herp.liz, aes(x=pre_post, y=n)) + xlab("Time Relative to Hurricane") + ylab("Number of Individuals") +
+  geom_line(aes(group=site), color= "chocolate2") +
+  geom_point(size=3, color= "burlywood4") +
   ggtitle("Effect of a Hurricane on Lizard Counts")
 
-ggplot(hurr.herp.amph, aes(x=pre_post, y=n)) + 
-  geom_line(aes(group=site)) +
-  geom_point(size=3) +
+ggplot(hurr.herp.amph, aes(x=pre_post, y=n)) + xlab("Time Relative to Hurricane") + ylab("Number of Individuals") +
+  geom_line(aes(group=site), color= "chocolate2") +
+  geom_point(size=3, color= "burlywood4") +
   ggtitle("Effect of a Hurricane on Amphibian Counts")
 ```
 
-```{r fit mixed model}
+```{r fit mixed model for herps}
 lmer.herp <- lmer(n ~ group*pre_post + (1|site), data= hurr.herp.group)
-# summary(lmer.herp)
+```
+
+```{r check machine model for herps, fig.width=9.5, fig.height=9}
+performance::check_model(lmer.herp)
+```
+
+```{r run ANOVA on model}
 anova(lmer.herp)
 ```
 
+Let's calculate model-adjusted means.
+
+```{r fit emmeans from model}
+emmeans(lmer.herp, "pre_post")
+```
+
+Pre-hurricane means are lower than post-hurricane means, but this doesn't tell us much. We know from our ANOVA that this is statistically non-significant.
+
+```{r fit emmeans from model - each group*pre_post}
+herp.emm <- emmeans(lmer.herp, "pre_post", "group")
+herp.emm
+```
+
+```{r emmeans as dataframe}
+data.emm <- as.data.frame(summary(herp.emm))
+data.emm
+```
+
+Model-adjusted means are the same as raw means because the experiment is fully balanced, but look, I'm proving I can run the code for them!
+
+```{r plot pre-post emmeans}
+data.emm$group <- factor(data.emm$group, levels= c("lizard","amphibian","snake"))
+ggplot(data.emm, aes(x=pre_post, y=emmean, group=group, color=group)) + scale_color_manual(name= "Taxonomic Group", values= c("darkgoldenrod1","burlywood4","chocolate2")) +
+  geom_line() +
+  geom_point(size=4)+
+  geom_errorbar(aes(ymin=emmean-SE, ymax=emmean+SE), width=.2)+
+  labs(title="Herpetofauna Counts Before and After a Hurricane", x= "Time Relative to Hurricane", y= "Number of Individuals")
+```
+
+# Repeated Measures Data
+
+```{r import and prep data}
+chimp <- read.csv("./Data/chimp_personality.csv", header=TRUE) %>% clean_names()
+chimp$sex <- as.factor(chimp$sex)
+```
+
+```{r plot the chimp data}
+ggplot(chimp, aes(x=time, y=extraversion, color=sex)) + scale_x_discrete(labels= c("Test 1", "Test 2")) +
+  scale_color_manual(values= c("chocolate2","burlywood4"), name= "Sex", labels= c("Male","Female")) + labs(title= "Change in Extraversion of Chimps", x= "Test Number", y= "Extraversion Rating") + geom_line(aes(group=id)) + geom_point(size=3)
+```
+
+```{r fit mixed model}
+chimp.lmer <- lmer(extraversion ~ sex*time + (1|id), data= chimp)
+anova(chimp.lmer)
+summary(chimp.lmer)
+```
+
 ```{r check machine model, fig.width=9.5, fig.height=9}
-performance::check_model(mixed_machine)
+performance::check_model(chimp.lmer)
 ```
 
-```{r fit emmeans from model - each machine}
-#calculate model-adjusted means (e.g. estimated marginal means)
-mixed_machine_emm <- emmeans(mixed_machine, "machine")
-mixed_machine_emm
+```{r emmeans}
+chimp.emm <- emmeans(chimp.lmer, "sex")
+chimp.emm
+chimp.emm.time <- emmeans(chimp.lmer, "time", "sex")
+chimp.emm.time
+data.chimp.emm <- as.data.frame(chimp.emm.time)
 ```
 
-```{r fit emmeans from model - each person}
-emmeans(mixed_machine, "person")
+Interesting... all chimps, regardless of sex, got less extraverted over time. Males were more extraverted than females.
+
+```{r plotting chimp emmeans}
+chimp.means <- chimp %>% group_by(time, sex) %>% summarise(mean_extraversion= mean(extraversion), se_rating =sd(extraversion)/sqrt(n()))
+chimp.means
+
+ggplot(data.chimp.emm, aes(x= time, y= emmean, color= sex)) + geom_point(size= 4) +
+  geom_errorbar(aes(ymin= emmean-SE, ymax= emmean+SE), width=.2) +
+  labs(title= "Means and Corrected Means for Extraversion in Chimps", x= "Test Number", y= "Mean Extraversion Rating") +
+  scale_color_manual(values= c("chocolate2","burlywood4"), name= "Sex", labels= c("Male","Female")) +
+  scale_x_discrete(labels= c("Test 1","Test 2")) +
+  geom_point(data= chimp.means, size=2, x= chimp.means$time, y= chimp.means$mean_extraversion, color="darkgoldenrod1")
 ```
 
-```{r fit emmeans from model - each person*machine}
-emmeans(mixed_machine, "machine", "person") #reverse the order of factors for alternative output # can switch the order
-```
+emmeans are the same as actual means.
+
+</div>

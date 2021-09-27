@@ -6,17 +6,14 @@ output: html_document
 ---
 <body style="background-color:darkolivegreen;">
 
-```{css, include=FALSE}
-.Autumn {
-  background-color: firebrick3;
-}
-```
 <style>
 div.cranberries pre { background-color:#D64D32; }
 div.cranberries pre.r { background-color:#EE9B6B; }
 </style>
 
 <div class = "cranberries">
+
+![](https://i.pinimg.com/originals/ee/bd/e4/eebde47dc0ad1d35d2742777167e77bc.jpg)
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 library(janitor)
@@ -164,4 +161,5 @@ ggplot(data.chimp.emm, aes(x= time, y= emmean, color= sex)) + geom_point(size= 4
 
 emmeans are the same as actual means.
 
+![](https://wompampsupport.azureedge.net/fetchimage?siteId=7575&v=2&jpgQuality=100&width=700&url=https%3A%2F%2Fi.kym-cdn.com%2Fentries%2Ficons%2Foriginal%2F000%2F031%2F349%2Ffrog.jpg)
 </div>
